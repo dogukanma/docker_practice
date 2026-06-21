@@ -1,0 +1,5 @@
+docker build -t my-docker-project .
+docker run -p 3000:3000 -d my-docker-project
+docker ps
+docker logs 2240486aa0d3
+docker logs -f
