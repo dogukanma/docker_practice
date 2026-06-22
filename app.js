@@ -4,29 +4,69 @@ const mongoose = require('mongoose');
 const app = express();
 const port = 3000;
 
-// docker compose içindeki servis adını (mongodb) kullanıyoruz.
-const mongoUri = process.env.MONGO_URI || 'mongodb://mongodb:27017/testdb'
+// body parser to read incoming post requests
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
+// mongodb connection
+const mongoUri = process.env.MONGO_URI || 'mongodb://mongodb:27017/testdb';
 mongoose.connect(mongoUri)
-  .then(() => console.log('MongoDB bağlantısı kuruldu.'))
-  .catch((err) => console.error('MongoDB bağlantı hatası: ', err));
+  .then(() => {
+    console.log('mongodb connection is ok.');
+    seedDatabase(); // add test user
+  })
+  .catch(err => console.error('mongodb connectione error', err));
 
-// storing visitor logs
-const LogSchema = new mongoose.Schema({ timestamp: { type: Date, default: Date.now } });
-const Log = mongoose.model('Log', LogSchema);
+// user
+const User = mongoose.model('User', new mongoose.Schema({
+  username: String,
+  password: String,
+  secretFlag: String
+}));
 
-app.get('/', async (req, res) => {
+// add test user to db
+async function seedDatabase() {
+  await User.deleteMany({}); // clear db before adding
+  await User.create({
+    username: 'admin',
+    password: 'passwordnosql123'
+  });
+  console.log('test user added to db');
+}
+
+// nosql injection point
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body;
+
   try {
-    // New log in every login
-    await Log.create({})
-    const totalLogs = await Log.countDocuments();
+    // -------- vulnerable part --------
+    // user input is directly processed as object in query
+    const user = await User.findOne({ username: username, password: password });
 
-    res.send(`Hello world, This page is visited ${totalLogs} times.`);
+    if (user) {
+      res.json({ success: true, message: "Login success." });
+    } else {
+      res.status(401).json({ success: false, message: "Incorrect username or password." });
+    }
   } catch (error) {
-    res.status(500).send('Veritabanı işlem hatası.')
+    res.status(500).json({ error: error.message });
   }
 });
 
+// homepage
+app.get('/', (req, res) => {
+  res.send(`
+    <h3>Homepage</h3>
+    <p>Try commands below</p>
+
+    <h4>1. Normal try:</h4>
+    <pre>curl -X POST http://localhost:3000/api/login -H "Content-Type: application/json" -d "{\\"username\\": \\"admin\\", \\"password\\": \\"wrong_password\\"}"</pre>
+    
+    <h4>2. Vulnerable try:</h4>
+    <pre>curl -X POST http://localhost:3000/api/login -H "Content-Type: application/json" -d "{\\"username\\": \\"admin\\", \\"password\\": {\\"$ne\\": \\"wrong_password\\"}}"</pre>
+  `);
+});
+
 app.listen(port, () => {
-  console.log(`Uygulama ${port} portunda çalışıyor.`)
-})
+  console.log(`App is running on port ${port}.`);
+});
