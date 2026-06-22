@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  # 1. service: Node.js app
+  node-app:
+    build: .   # use dockerfile in current dir
+    ports: 
+      - "3000:3000" # connect with port 3000
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/testdb # pass the db address as a variable
+    depends_on:
+      - mongodb # nodejs app will run after mongodb
+    networks:
+      - app-network # include this service to shared network
+
+  # 2. service: MongoDB
+  mongodb:
+    image: mongo:6.0 # official image from docker hub
+    # ports: - "27017:27017" -> Don't open ports to outside
+    volumes:
+      - mongo-data:/data/db # we connect volumes to store the data after container is deleted.
+    networks:
+      - app-network # add db to shared network
+
+# define shared network
+networks:
+  app-network:
+    driver: bridge
+
+# Volume (Permanent Storage)
+volumes:
+  mongo-data:
