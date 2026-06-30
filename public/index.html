@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Docker Blog</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <div id="login-section" class="section">
+    <h1>Giriş Yap</h1>
+    <p>Örnek giriş: <b>m.scott</b> / <b>password123</b></p>
+    <input type="text" id="login-user" placeholder="Username">
+    <input type="text" id="login-pass" placeholder="Password veya JSON Payload">
+    <button onclick="login()">Giriş Yap</button>
+    <p><a href="#" onclick="toggleRegister()">Kayıt Ol</a></p>
+
+    <hr>
+    <div style="background: #ffdddd; padding: 15px; border-radius: 5px; font-size: 0.9em; margin-top: 15px;">
+      <h4>Burpsuite ile istekleri yakalayıp username ve pw kısmına şunları girelim:</h4>
+      <p><code>{"username": "admin","password": {"$ne": "lorem"}}</code></p>
+    </div>
+  </div>
+
+  <div id="register-section" class="section hidden">
+    <h1>Kayıt Ol</h1>
+    <input type="text" id="reg-user" placeholder="Username">
+    <input type="password" id="reg-pass" placeholder="Password">
+    <button onclick="register()">Kayıt Ol</button>
+    <p><a href="#" onclick="toggleRegister()">Giriş Yap</a></p>
+  </div>
+
+  <div id="dashboard-section" class="hidden">
+    <div class="section"
+      style="display: flex; justify-content: space-between; align-items: center; background: #2c3e50; color: white;">
+      <h2 style="margin: 0;">Hoşgeldin, <span id="current-user"></span></h2>
+      <button onclick="logout()" style="background: #e74c3c;">Çıkış Yap</button>
+    </div>
+
+    <div id="secret-container" class="secret-box hidden">
+      <strong>Özel Not:</strong> <span id="secret-note"></span>
+    </div>
+
+    <div class="section">
+      <h3>Yeni Yazı Ekle</h3>
+      <input type="text" id="title" placeholder="Başlık" required>
+      <textarea id="content" placeholder="Yazı içeriği..." rows="4" required></textarea>
+      <button onclick="createPost()">Paylaş</button>
+    </div>
+
+    <div class="section">
+      <h3>Son Yazılar</h3>
+      <div id="posts-container">Yükleniyor...</div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+
+</html>

@@ -1,85 +1,122 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const path = require('path');
 
 const app = express();
 const port = 3000;
 
-// body parser to read incoming requests
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
 
-// mongodb connection
-const mongoUri = process.env.MONGO_URI || 'mongodb://mongodb:27017/testdb';
+const mongoUri = process.env.MONGO_URI || 'mongodb://mongodb:27017/blogdb';
 mongoose.connect(mongoUri)
   .then(() => {
-    console.log('mongodb connection is ok.');
-    seedDatabase(); // add test user
+    console.log('Database connected successfully.');
+    seedDatabase();
   })
-  .catch(err => console.error('mongodb connectione error', err));
+  .catch(err => console.error('Database connection error:', err));
 
-// user
 const User = mongoose.model('User', new mongoose.Schema({
   username: String,
   password: String,
-  role: String,
-  privateNotes: String,
-  blogPosts: Array
+  privateNotes: String
 }));
 
-// add mock data to db
+const Post = mongoose.model('Post', new mongoose.Schema({
+  title: String,
+  content: String,
+  author: String,
+  createdAt: { type: Date, default: Date.now }
+}));
+
 async function seedDatabase() {
-  await User.deleteMany({}); // Clear existing data to avoid duplicates
-  await User.create([
-    {
-      username: 'admin',
-      password: 'SuperSecretAdminPassword123!',
-      role: 'admin',
-      privateNotes: 'access key: FKJSNFHE1908N3J2K',
-      blogPosts: ['System Architecture V2', 'Docker Swarm Migration']
-    },
-    {
-      username: 'johndoe',
-      password: 'password123',
-      role: 'author',
-      privateNotes: 'Also, my bank account routing number: 122000661...',
-      blogPosts: ['Hello World', 'A Guide to Containerization']
-    }
-  ]);
-  console.log('Mock database seeded.');
+  const userCount = await User.countDocuments();
+  if (userCount === 0) {
+    await User.create([
+      { username: 'admin', password: 'SuperSecretAdminPassword123!', privateNotes: 'AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE' },
+      { username: 'm.scott', password: 'password123', privateNotes: 'My bank PIN is 1234.' }
+    ]);
+    console.log('Mock users seeded.');
+  }
+
+  const postCount = await Post.countDocuments();
+  if (postCount === 0) {
+    await Post.create([
+      { title: 'Welcome to the Secure Portal', content: 'This system requires authentication to post.', author: 'admin' }
+    ]);
+    console.log('Mock posts seeded.');
+  }
 }
 
-app.get('/', (req, res) => res.send('API is running. Send POST requests to /api/profile'));
-
-// vulnerable profile endpoint - nosql injection point
-app.post('/api/profile', async (req, res) => {
-  const { username, password } = req.body;
-
+// 1. Get all posts
+app.get('/api/posts', async (req, res) => {
   try {
-    // Directly passing user input into mongodb query
-    // attacker can pass an object like { "$ne": "" } instead of true password.
-    // example: curl -X POST http://localhost:3000/api/profile -H "Content-Type: application/json" -d "{\"username\": \"admin\", \"password\": {\"$ne\": \"\"}}"
-    const userProfile = await User.findOne({ username: username, password: password });
-
-    if (userProfile) {
-      // if auth is successful
-      res.json({
-        success: true,
-        profile: {
-          username: userProfile.username,
-          role: userProfile.role,
-          privateNotes: userProfile.privateNotes,
-          posts: userProfile.blogPosts
-        }
-      });
-    } else {
-      res.status(403).json({ success: false, message: "Access denied. Invalid credentials." });
-    }
+    const posts = await Post.find().sort({ createdAt: -1 });
+    res.json(posts);
   } catch (error) {
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
-// start server
+// 2. Create a new post
+app.post('/api/posts', async (req, res) => {
+  try {
+    const { title, content, author } = req.body;
+    const newPost = await Post.create({ title, content, author });
+    res.json({ success: true, post: newPost });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// 3. Vulnerable Login Endpoint (NoSQL Injection)
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body;
+
+  // Type control to make sure input is string and not an object.
+  if (typeof username !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({ success: false, message: "Geçersiz parametre tipi!" });
+  }
+
+  // Cast inputs to String
+  const safeUsername = String(username || '');
+  const safePassword = String(password || '');
+  try {
+    const user = await User.findOne({ username: username, password: password });
+    if (user) {
+      //send username to frontend on login
+      res.json({ success: true, username: user.username, message: "Login successful", secret: user.privateNotes });
+    } else {
+      res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// 4. Register Endpoint
+app.post('/api/register', async (req, res) => {
+  const { username, password } = req.body;
+  // Type control to make sure input is string and not an object.
+  if (typeof username !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({ success: false, message: "Geçersiz parametre tipi!" });
+  }
+  // Cast inputs to String
+  const safeUsername = String(username || '');
+  const safePassword = String(password || '');
+  try {
+    const existing = await User.findOne({ username });
+    if (existing) {
+      return res.status(400).json({ success: false, message: "Username already exists" });
+    }
+    const newUser = await User.create({ username, password, privateNotes: "Özel bir not bulunmuyor." });
+    res.json({ success: true, username: newUser.username, message: "Registration successful", secret: newUser.privateNotes });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 app.listen(port, () => {
-  console.log(`Blog system running on port ${port}.`);
+  console.log(`API running on port ${port}.`);
 });
