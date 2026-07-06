@@ -55,6 +55,7 @@ async function sendAuthRequest(payload, endpoint) {
       alert(data.message || "İşlem başarısız.");
     }
   } catch (err) {
+    console.error("Bağlantı hatası:", err);
     alert("Sunucuya bağlanılamadı.");
   }
 }

@@ -55,6 +55,7 @@ app.get('/api/posts', async (req, res) => {
     const posts = await Post.find().sort({ createdAt: -1 });
     res.json(posts);
   } catch (error) {
+    console.error('Error fetching posts:', error);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -66,6 +67,7 @@ app.post('/api/posts', async (req, res) => {
     const newPost = await Post.create({ title, content, author });
     res.json({ success: true, post: newPost });
   } catch (error) {
+    console.error('Error creating post:', error);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -83,7 +85,7 @@ app.post('/api/login', async (req, res) => {
   const safeUsername = String(username || '');
   const safePassword = String(password || '');
   try {
-    const user = await User.findOne({ username: username, password: password });
+    const user = await User.findOne({ username: safeUsername, password: safePassword });
     if (user) {
       //send username to frontend on login
       res.json({ success: true, username: user.username, message: "Login successful", secret: user.privateNotes });
@@ -91,6 +93,7 @@ app.post('/api/login', async (req, res) => {
       res.status(401).json({ success: false, message: "Invalid credentials" });
     }
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -106,13 +109,14 @@ app.post('/api/register', async (req, res) => {
   const safeUsername = String(username || '');
   const safePassword = String(password || '');
   try {
-    const existing = await User.findOne({ username });
+    const existing = await User.findOne({ username: safeUsername });
     if (existing) {
       return res.status(400).json({ success: false, message: "Username already exists" });
     }
-    const newUser = await User.create({ username, password, privateNotes: "Özel bir not bulunmuyor." });
+    const newUser = await User.create({ username: safeUsername, password: safePassword, privateNotes: "Özel bir not bulunmuyor." });
     res.json({ success: true, username: newUser.username, message: "Registration successful", secret: newUser.privateNotes });
   } catch (error) {
+    console.error('Registration error:', error);
     res.status(500).json({ error: "Server error" });
   }
 });

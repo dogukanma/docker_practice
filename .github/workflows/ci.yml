@@ -1,0 +1,40 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Linter (ESLint)
+        run: npm run lint
+
+      - name: Start Docker Compose Services
+        run: docker-compose up -d --build
+
+      - name: Wait & Health Check (Integration Test)
+        run: |
+          echo "Waiting for node-app to be healthy..."
+          timeout 60s sh -c 'until curl -sf http://localhost:3000/api/posts; do echo "Waiting for app to start..."; sleep 2; done'
+          echo "App is healthy and responded successfully!"
+
+      - name: Stop Docker Compose Services
+        if: always()
+        run: docker-compose down -v
