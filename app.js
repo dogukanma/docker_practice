@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const port = 3000;
@@ -117,6 +118,140 @@ app.post('/api/register', async (req, res) => {
     res.json({ success: true, username: newUser.username, message: "Registration successful", secret: newUser.privateNotes });
   } catch (error) {
     console.error('Registration error:', error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// 5. Delete post
+app.delete('/api/posts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { username } = req.query;
+
+    if (typeof username !== 'string') {
+      return res.status(400).json({ success: false, message: "Invalid user parameter!" });
+    }
+
+    const safeUsername = String(username || '');
+
+    // Retrieve the post
+    const post = await Post.findById(id);
+    if (!post) {
+      return res.status(404).json({ success: false, message: "Post not found" });
+    }
+
+    // Check if the user is the author
+    if (post.author !== safeUsername) {
+      return res.status(403).json({ success: false, message: "Unauthorized." });
+    }
+
+    await Post.findByIdAndDelete(id);
+    res.json({ success: true, message: "Post deleted." });
+  } catch (error) {
+    console.error('Delete post error:', error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// 6. Update user's notes
+app.put('/api/users/secret', async (req, res) => {
+  const { username, secret } = req.body;
+  if (typeof username !== 'string' || typeof secret !== 'string') {
+    return res.status(400).json({ success: false, message: "Geçersiz parametre tipi." });
+  }
+
+  const safeUsername = String(username || '');
+  const safeSecret = String(secret || '');
+
+  try {
+    const user = await User.findOneAndUpdate(
+      { username: safeUsername },
+      { privateNotes: safeSecret },
+      { new: true }
+    );
+    if (user) {
+      res.json({ success: true, message: "Note updated.", secret: user.privateNotes });
+    } else {
+      res.status(404).json({ success: false, message: "User not found" });
+    }
+  } catch (error) {
+    console.error('Update secret error:', error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// 7. Path Traversal
+app.get('/api/download', (req, res) => {
+  const { file } = req.query;
+
+  // Resolve base directory and requested file path to absolute paths
+  const safeDir = path.join(__dirname, 'public');
+  const filePath = path.resolve(safeDir, String(file || ''));
+
+  // Prevent directory traversal by checking if path starts with the allowed directory
+  if (!filePath.startsWith(safeDir)) {
+    return res.status(403).send('Access Denied.');
+  }
+
+  fs.readFile(filePath, 'utf8', (err, data) => {
+    if (err) {
+      console.error('File read error:', err);
+      return res.status(404).send('File not found');
+    }
+    res.send(data);
+  });
+});
+
+// 8. Blind NoSQL Injection
+app.post('/api/users/search', async (req, res) => {
+  const { username, password } = req.body;
+
+  // Enforce string type checks to prevent NoSQL query operator injection
+  if (typeof username !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({ success: false, message: "Invalid parameters." });
+  }
+
+  try {
+    // Explicitly query using verified string primitives
+    const user = await User.findOne({
+      username: String(username),
+      password: String(password)
+    });
+
+    if (user) {
+      res.json({ found: true });
+    } else {
+      res.json({ found: false });
+    }
+  } catch (error) {
+    console.error('Search user error:', error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// 9. IDOR
+app.get('/api/users/profile', async (req, res) => {
+  const { username } = req.query;
+  const requester = req.headers['x-username'];
+
+  // Prevent IDOR by verifying if the requester matches the requested profile
+  if (username !== requester) {
+    return res.status(403).json({ success: false, message: "Unauthorized profile access." });
+  }
+
+  try {
+    const user = await User.findOne({ username: String(username || '') });
+    if (user) {
+      res.json({
+        success: true,
+        username: user.username,
+        privateNotes: user.privateNotes
+      });
+    } else {
+      res.status(404).json({ success: false, message: "User not found" });
+    }
+  } catch (error) {
+    console.error('Profile fetch error:', error);
     res.status(500).json({ error: "Server error" });
   }
 });

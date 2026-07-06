@@ -91,21 +91,86 @@ function logout() {
   document.getElementById('reg-pass').value = '';
 }
 
+// Escapes html characters and changes with secure equivalents - xss prevention
+function escapeHTML(str) {
+  if (!str) return "";
+  return String(str).replace(/[&<>'"]/g,
+    tag => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      "'": '&#39;',
+      '"': '&quot;'
+    }[tag] || tag)
+  );
+}
+
 async function loadPosts() {
   const res = await fetch('/api/posts');
   const posts = await res.json();
   const container = document.getElementById('posts-container');
   container.innerHTML = '';
 
+  // previously had stored xss vulnerability
   posts.forEach(post => {
-    // Vulnerability: DOM based XSS
+    // show delete button if user is the author
+    const isAuthor = post.author === currentUser;
+    const deleteButton = isAuthor
+      ? `<button onclick="deletePost('${post._id}')" class="delete-btn" style="background-color: #ff4d4d; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-top: 10px;">Sil</button>`
+      : '';
+
     container.innerHTML += `
             <div class="post">
-                <h2>${post.title}</h2>
-                <p style="color: #555; font-size: 0.9em;">Yazar: ${post.author} | ${new Date(post.createdAt).toLocaleString()}</p>
-                <p>${post.content}</p>
+                <h2>${escapeHTML(post.title)}</h2>
+                <p style="color: #555; font-size: 0.9em;">Yazar: ${escapeHTML(post.author)} | ${new Date(post.createdAt).toLocaleString()}</p>
+                <p>${escapeHTML(post.content)}</p>
+                ${deleteButton}
             </div>`;
   });
+}
+
+async function deletePost(id) {
+  if (!confirm("Bu gönderiyi silmek istediğinize emin misiniz?")) return;
+  try {
+    // Send username as a query parameter for authorization
+    const res = await fetch(`/api/posts/${id}?username=${encodeURIComponent(currentUser)}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+    if (data.success) {
+      loadPosts();
+    } else {
+      alert("Silme işlemi başarısız: " + data.message);
+    }
+  } catch (err) {
+    console.error("Post silinirken hata oluştu:", err);
+    alert("Sunucuya bağlanılamadı.");
+  }
+}
+
+async function editSecret() {
+  const newSecret = prompt("Not girin:", currentSecret || "");
+  if (newSecret === null) return;
+
+  try {
+    const res = await fetch('/api/users/secret', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: currentUser, secret: newSecret })
+    });
+    const data = await res.json();
+    if (data.success) {
+      currentSecret = data.secret;
+      localStorage.setItem('currentSecret', currentSecret);
+      document.getElementById('secret-note').innerText = currentSecret;
+      alert("Not güncellendi.");
+    } else {
+      alert("Güncelleme başarısız: " + data.message);
+    }
+  } catch (err) {
+    console.error("Not güncellenirken hata:", err);
+    alert("Sunucuya bağlanılamadı.");
+  }
 }
 
 async function createPost() {
