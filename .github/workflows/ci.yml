@@ -27,7 +27,7 @@ jobs:
         run: npm run lint
 
       - name: Start Docker Compose Services
-        run: docker-compose up -d --build
+        run: docker compose up -d --build
 
       - name: Wait & Health Check (Integration Test)
         run: |
@@ -37,4 +37,4 @@ jobs:
 
       - name: Stop Docker Compose Services
         if: always()
-        run: docker-compose down -v
+        run: docker compose down -v
