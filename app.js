@@ -20,7 +20,6 @@ if (!mongoUri) {
 mongoose.connect(mongoUri)
   .then(() => {
     console.log('Database connected successfully.');
-    seedDatabase();
   })
   .catch(err => console.error('Database connection error:', err));
 
@@ -36,25 +35,6 @@ const Post = mongoose.model('Post', new mongoose.Schema({
   author: String,
   createdAt: { type: Date, default: Date.now }
 }));
-
-async function seedDatabase() {
-  const userCount = await User.countDocuments();
-  if (userCount === 0) {
-    await User.create([
-      { username: 'admin', password: 'admin', privateNotes: 'AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE' },
-      { username: 'm.scott', password: 'm.scott', privateNotes: 'My bank PIN is 1234.' }
-    ]);
-    console.log('Mock users seeded.');
-  }
-
-  const postCount = await Post.countDocuments();
-  if (postCount === 0) {
-    await Post.create([
-      { title: 'Welcome to the Secure Portal', content: 'This system requires authentication to post.', author: 'admin' }
-    ]);
-    console.log('Mock posts seeded.');
-  }
-}
 
 // 1. Get all posts
 app.get('/api/posts', async (req, res) => {
