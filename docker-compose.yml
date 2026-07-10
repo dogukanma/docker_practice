@@ -5,9 +5,9 @@ services:
   node-app:
     build: .   # use dockerfile in current dir
     ports: 
-      - "3000:3000" # connect with port 3000
+      - "127.0.0.1:3000:3000" # connect with port 3000 to localhost
     environment:
-      - MONGO_URI=mongodb://mongodb:27017/testdb # pass the db address as a variable
+      - MONGO_URI=${MONGO_URI}
     depends_on:
       mongodb: # nodejs app will run after mongodb
         condition: service_healthy
@@ -18,6 +18,9 @@ services:
   mongodb:
     image: mongo:6.0 # official image from docker hub
     # ports: - "27017:27017" -> Don't open ports to outside
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
       - mongo-data:/data/db # we connect volumes to store the data after container is deleted.
     networks:
@@ -26,7 +29,7 @@ services:
 # health check to verify mongodb is ready to prevent hanging node requests
 # needed to fix ci workflow issues in mongoose 9+
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "-u", "${MONGO_INITDB_ROOT_USERNAME}", "-p", "${MONGO_INITDB_ROOT_PASSWORD}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
       interval: 5s
       timeout: 5s
       retries: 3

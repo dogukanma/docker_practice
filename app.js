@@ -10,7 +10,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-const mongoUri = process.env.MONGO_URI || 'mongodb://mongodb:27017/blogdb';
+// mongodb auth variables
+const mongoUri = process.env.MONGO_URI;
+if (!mongoUri) {
+  console.error('Error: MONGO_URI variable is not defined.');
+  process.exit(1);
+}
+
 mongoose.connect(mongoUri)
   .then(() => {
     console.log('Database connected successfully.');
@@ -35,8 +41,8 @@ async function seedDatabase() {
   const userCount = await User.countDocuments();
   if (userCount === 0) {
     await User.create([
-      { username: 'admin', password: 'SuperSecretAdminPassword123!', privateNotes: 'AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE' },
-      { username: 'm.scott', password: 'password123', privateNotes: 'My bank PIN is 1234.' }
+      { username: 'admin', password: 'admin', privateNotes: 'AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE' },
+      { username: 'm.scott', password: 'm.scott', privateNotes: 'My bank PIN is 1234.' }
     ]);
     console.log('Mock users seeded.');
   }
