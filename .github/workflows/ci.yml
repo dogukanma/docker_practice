@@ -29,6 +29,13 @@ jobs:
       - name: Run Linter (ESLint)
         run: npm run lint
 
+      # Create a temporary .env file for CI
+      - name: Create test env file
+        run: |
+          echo "MONGO_INITDB_ROOT_USERNAME=user" >> .env
+          echo "MONGO_INITDB_ROOT_PASSWORD=user" >> .env
+          echo "MONGO_URI=mongodb://user:user@mongodb:27017/blogdb?authSource=admin" >> .env
+
       - name: Start Docker Compose Services
         run: docker compose up -d --build
 
