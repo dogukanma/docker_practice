@@ -11,17 +11,16 @@
 
   <div id="login-section" class="section">
     <h1>Giriş Yap</h1>
-    <p>Örnek giriş: <b>m.scott</b> / <b>password123</b></p>
     <input type="text" id="login-user" placeholder="Username">
     <input type="text" id="login-pass" placeholder="Password veya JSON Payload">
     <button onclick="login()">Giriş Yap</button>
     <p><a href="#" onclick="toggleRegister()">Kayıt Ol</a></p>
 
     <hr>
-    <div style="background: #ffdddd; padding: 15px; border-radius: 5px; font-size: 0.9em; margin-top: 15px;">
+    <!-- <div style="background: #ffdddd; padding: 15px; border-radius: 5px; font-size: 0.9em; margin-top: 15px;">
       <h4>Burpsuite ile istekleri yakalayıp username ve pw kısmına şunları girelim:</h4>
       <p><code>{"username": "admin","password": {"$ne": "lorem"}}</code></p>
-    </div>
+    </div> -->
   </div>
 
   <div id="register-section" class="section hidden">
